@@ -758,14 +758,14 @@ static void rtl8139_write_buffer(RTL8139State *s, const void *buf, int size)
 
             if (size > wrapped)
             {
-                pci_dma_write(d, s->RxBuf + s->RxBufAddr,
+                rtlnic_mut_pci_dma_write(d, s->RxBuf + s->RxBufAddr,
                               buf, size-wrapped);
             }
 
             /* reset buffer pointer */
             s->RxBufAddr = 0;
 
-            pci_dma_write(d, s->RxBuf + s->RxBufAddr,
+            rtlnic_mut_pci_dma_write(d, s->RxBuf + s->RxBufAddr,
                           buf + (size-wrapped), wrapped);
 
             s->RxBufAddr = wrapped;
@@ -775,7 +775,7 @@ static void rtl8139_write_buffer(RTL8139State *s, const void *buf, int size)
     }
 
     /* non-wrapping path or overwrapping enabled */
-    pci_dma_write(d, s->RxBuf + s->RxBufAddr, buf, size);
+    rtlnic_mut_pci_dma_write(d, s->RxBuf + s->RxBufAddr, buf, size);
 
     s->RxBufAddr += size;
 }
@@ -1058,12 +1058,12 @@ static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t
 
         /* receive/copy to target memory */
         if (dot1q_buf) {
-            pci_dma_write(d, rx_addr, buf, 2 * ETH_ALEN);
-            pci_dma_write(d, rx_addr + 2 * ETH_ALEN,
+            rtlnic_mut_pci_dma_write(d, rx_addr, buf, 2 * ETH_ALEN);
+            rtlnic_mut_pci_dma_write(d, rx_addr + 2 * ETH_ALEN,
                           buf + 2 * ETH_ALEN + VLAN_HLEN,
                           size - 2 * ETH_ALEN);
         } else {
-            pci_dma_write(d, rx_addr, buf, size);
+            rtlnic_mut_pci_dma_write(d, rx_addr, buf, size);
         }
 
         if (s->CpCmd & CPlusRxChkSum)
@@ -1073,7 +1073,7 @@ static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t
 
         /* write checksum */
         val = cpu_to_le32(crc32(0, buf, size_));
-        pci_dma_write(d, rx_addr+size, (uint8_t *)&val, 4);
+        rtlnic_mut_pci_dma_write(d, rx_addr+size, (uint8_t *)&val, 4);
 
 /* first segment of received packet flag */
 #define CP_RX_STATUS_FS (1<<29)
@@ -1119,9 +1119,9 @@ static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t
 
         /* update ring data */
         val = cpu_to_le32(rxdw0);
-        pci_dma_write(d, cplus_rx_ring_desc, (uint8_t *)&val, 4);
+        rtlnic_mut_pci_dma_write(d, cplus_rx_ring_desc, (uint8_t *)&val, 4);
         val = cpu_to_le32(rxdw1);
-        pci_dma_write(d, cplus_rx_ring_desc+4, (uint8_t *)&val, 4);
+        rtlnic_mut_pci_dma_write(d, cplus_rx_ring_desc+4, (uint8_t *)&val, 4);
 
         /* update tally counter */
         ++s->tally_counters.RxOk;
@@ -1318,43 +1318,43 @@ static void RTL8139TallyCounters_dma_write(RTL8139State *s, dma_addr_t tc_addr)
     uint64_t val64;
 
     val64 = cpu_to_le64(tally_counters->TxOk);
-    pci_dma_write(d, tc_addr + 0,     (uint8_t *)&val64, 8);
+    rtlnic_mut_pci_dma_write(d, tc_addr + 0,     (uint8_t *)&val64, 8);
 
     val64 = cpu_to_le64(tally_counters->RxOk);
-    pci_dma_write(d, tc_addr + 8,     (uint8_t *)&val64, 8);
+    rtlnic_mut_pci_dma_write(d, tc_addr + 8,     (uint8_t *)&val64, 8);
 
     val64 = cpu_to_le64(tally_counters->TxERR);
-    pci_dma_write(d, tc_addr + 16,    (uint8_t *)&val64, 8);
+    rtlnic_mut_pci_dma_write(d, tc_addr + 16,    (uint8_t *)&val64, 8);
 
     val32 = cpu_to_le32(tally_counters->RxERR);
-    pci_dma_write(d, tc_addr + 24,    (uint8_t *)&val32, 4);
+    rtlnic_mut_pci_dma_write(d, tc_addr + 24,    (uint8_t *)&val32, 4);
 
     val16 = cpu_to_le16(tally_counters->MissPkt);
-    pci_dma_write(d, tc_addr + 28,    (uint8_t *)&val16, 2);
+    rtlnic_mut_pci_dma_write(d, tc_addr + 28,    (uint8_t *)&val16, 2);
 
     val16 = cpu_to_le16(tally_counters->FAE);
-    pci_dma_write(d, tc_addr + 30,    (uint8_t *)&val16, 2);
+    rtlnic_mut_pci_dma_write(d, tc_addr + 30,    (uint8_t *)&val16, 2);
 
     val32 = cpu_to_le32(tally_counters->Tx1Col);
-    pci_dma_write(d, tc_addr + 32,    (uint8_t *)&val32, 4);
+    rtlnic_mut_pci_dma_write(d, tc_addr + 32,    (uint8_t *)&val32, 4);
 
     val32 = cpu_to_le32(tally_counters->TxMCol);
-    pci_dma_write(d, tc_addr + 36,    (uint8_t *)&val32, 4);
+    rtlnic_mut_pci_dma_write(d, tc_addr + 36,    (uint8_t *)&val32, 4);
 
     val64 = cpu_to_le64(tally_counters->RxOkPhy);
-    pci_dma_write(d, tc_addr + 40,    (uint8_t *)&val64, 8);
+    rtlnic_mut_pci_dma_write(d, tc_addr + 40,    (uint8_t *)&val64, 8);
 
     val64 = cpu_to_le64(tally_counters->RxOkBrd);
-    pci_dma_write(d, tc_addr + 48,    (uint8_t *)&val64, 8);
+    rtlnic_mut_pci_dma_write(d, tc_addr + 48,    (uint8_t *)&val64, 8);
 
     val32 = cpu_to_le32(tally_counters->RxOkMul);
-    pci_dma_write(d, tc_addr + 56,    (uint8_t *)&val32, 4);
+    rtlnic_mut_pci_dma_write(d, tc_addr + 56,    (uint8_t *)&val32, 4);
 
     val16 = cpu_to_le16(tally_counters->TxAbt);
-    pci_dma_write(d, tc_addr + 60,    (uint8_t *)&val16, 2);
+    rtlnic_mut_pci_dma_write(d, tc_addr + 60,    (uint8_t *)&val16, 2);
 
     val16 = cpu_to_le16(tally_counters->TxUndrn);
-    pci_dma_write(d, tc_addr + 62,    (uint8_t *)&val16, 2);
+    rtlnic_mut_pci_dma_write(d, tc_addr + 62,    (uint8_t *)&val16, 2);
 }
 
 static void rtl8139_ChipCmd_write(RTL8139State *s, uint32_t val)
@@ -2039,7 +2039,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
 
     /* update ring data */
     val = cpu_to_le32(txdw0);
-    pci_dma_write(d, cplus_tx_ring_desc, (uint8_t *)&val, 4);
+    rtlnic_mut_pci_dma_write(d, cplus_tx_ring_desc, (uint8_t *)&val, 4);
 
     /* Now decide if descriptor being processed is holding the last segment of packet */
     if (txdw0 & CP_TX_LS)

@@ -319,8 +319,25 @@ static void nvme_post_cqes(void *opaque)
         req->cqe.sq_head = cpu_to_le16(sq->head);
         addr = cq->dma_addr + cq->tail * n->cqe_size;
         nvme_inc_cq_tail(cq);
+#if 1
+        static int delay_cnt = 100;
+        if (delay_cnt==0)
+        {
+          mut_pci_dma_write(&n->parent_obj, addr, (void *)&req->cqe,
+              sizeof(req->cqe));
+        }else
+        {
+          printf("delay = %d\n", delay_cnt);
+          delay_cnt--;
         pci_dma_write(&n->parent_obj, addr, (void *)&req->cqe,
             sizeof(req->cqe));
+
+        }
+#else
+        pci_dma_write(&n->parent_obj, addr, (void *)&req->cqe,
+            sizeof(req->cqe));
+
+#endif
         QTAILQ_INSERT_TAIL(&sq->req_list, req, entry);
     }
     if (cq->tail != cq->head) {

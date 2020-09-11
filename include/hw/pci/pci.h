@@ -803,6 +803,66 @@ static inline int pci_dma_write(PCIDevice *dev, dma_addr_t addr,
     return pci_dma_rw(dev, addr, (void *) buf, len, DMA_DIRECTION_FROM_DEVICE);
 }
 
+static int mut_delay=0;
+static inline int mut_pci_dma_write(PCIDevice *dev, dma_addr_t addr,
+                                const void *buf, dma_addr_t len)
+{
+    // mutate data
+    char* mut_data = malloc(len);
+    memcpy(mut_data, buf, len);
+    // pick one and set it to random value
+    if (mut_delay==0) {
+      // how frequent should I mutate 
+      int mf = rand() % 100;
+      if (mf > 90) {
+        int mcnt = rand() % len;
+        // int mcnt = 1;
+        printf("mutate %d chars\n", mcnt);
+        while(mcnt) {
+          int offset = rand() % len;
+          mut_data[offset] = rand() % 0xff;
+          mcnt--;
+        }
+      }
+    } else {
+      mut_delay--;
+      printf("pci_dma_write delay mutation %d\n", mut_delay);
+    }
+    int ret = pci_dma_write(dev, addr, (void *) mut_data, len);
+    free(mut_data);
+    return ret;
+}
+
+static inline int rtlnic_mut_pci_dma_write(PCIDevice *dev, dma_addr_t addr,
+                                const void *buf, dma_addr_t len)
+{
+#if 0
+    return pci_dma_rw(dev, addr, (void *) buf, len, DMA_DIRECTION_FROM_DEVICE);
+#else
+    return mut_pci_dma_write(dev, addr, buf, len);
+#endif
+}
+
+static inline int e1000_mut_pci_dma_write(PCIDevice *dev, dma_addr_t addr,
+                                const void *buf, dma_addr_t len)
+{
+#if 1
+    return pci_dma_rw(dev, addr, (void *) buf, len, DMA_DIRECTION_FROM_DEVICE);
+#else
+    return mut_pci_dma_write(dev, addr, buf, len);
+#endif
+}
+
+static inline int e1000e_mut_pci_dma_write(PCIDevice *dev, dma_addr_t addr,
+                                const void *buf, dma_addr_t len)
+{
+#if 1
+    return pci_dma_rw(dev, addr, (void *) buf, len, DMA_DIRECTION_FROM_DEVICE);
+#else
+    return mut_pci_dma_write(dev, addr, buf, len);
+#endif
+}
+
 #define PCI_DMA_DEFINE_LDST(_l, _s, _bits)                              \
     static inline uint##_bits##_t ld##_l##_pci_dma(PCIDevice *dev,      \
                                                    dma_addr_t addr)     \
