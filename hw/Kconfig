@@ -30,6 +30,7 @@ source rdma/Kconfig
 source rtc/Kconfig
 source scsi/Kconfig
 source sd/Kconfig
+source sfp/Kconfig
 source semihosting/Kconfig
 source smbios/Kconfig
 source ssi/Kconfig
