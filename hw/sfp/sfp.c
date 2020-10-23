@@ -6,6 +6,7 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qemu/error-report.h"
+#include "qemu/thread.h"
 #include "hw/block/block.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/pci.h"
@@ -22,7 +23,7 @@
 #include "qemu/cutils.h"
 #include "hw/irq.h"
 
-#define SFPBARCNT 4
+#define SFPBARCNT 6
 
 typedef struct SFPMBS {
   void* parent;
@@ -114,13 +115,13 @@ static void sfp_mmio_write(void *opaque, hwaddr addr, uint64_t data,
     // those register need to be set
     n->bar[0x07] = rand()%0xff;
     n->bar[0x04] = rand()%0xff;
-    sfp_assert_irq(ctrl);
+    // sfp_assert_irq(ctrl);
   }
   else {
     // those register need to be set
     n->bar[0x07] = rand()%0xff;
     n->bar[0x04] = rand()%0xff;
-    sfp_deassert_irq(ctrl);
+    // sfp_deassert_irq(ctrl);
   }
   timer_mod(ctrl->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500000000);
 }
@@ -230,7 +231,7 @@ static void sfp_class_init(ObjectClass *oc, void *data)
     pc->realize = sfp_realize;
     pc->exit = sfp_exit;
     // does not really matter
-    pc->class_id = 0x1234;
+    pc->class_id = 0x0200;
     // need to get this from driver
     pc->vendor_id = sfpvid;
     // need to get this from driver
