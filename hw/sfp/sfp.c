@@ -162,11 +162,16 @@ static void sfp_gen_irq(void *opaque) {
 
 static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
     SFPCtrl *n = SFP(pci_dev);
+#define PIO 0
+#define MMIO 1
+
+    int bartype[SFPBARCNT] = {MMIO, MMIO, MMIO, MMIO, MMIO, MMIO};
+    int barsize[SFPBARCNT] = {0x1000, 0x1000, 0x1000, 0x40000, 0x1000, 0x1000};
     for (int i=0;i<SFPBARCNT;i++)
     {
       SFPMBS* sfpmbs = &(n->bars[i]);
       //FIXME: fix bar size
-      int bar_size = 0x1000;
+      int bar_size = barsize[i];
       uint8_t* bar = (uint8_t*)malloc(bar_size);
       if (!bar) {
         printf("bar %d allocation failed!\n", i);
@@ -187,15 +192,18 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
       sprintf(name, "sfp-%d", i);
       memory_region_init_io(&sfpmbs->iomem, OBJECT(n), &sfp_mmio_ops, sfpmbs, name, bar_size);
       // register bar
-#if 0
-      // - mode 1
-      pci_register_bar(pci_dev, i, PCI_BASE_ADDRESS_SPACE_MEMORY |
-                       PCI_BASE_ADDRESS_MEM_TYPE_64, &sfpmbs->iomem);
-#else
-      // - mode 2
-      pci_register_bar(pci_dev, i, PCI_BASE_ADDRESS_SPACE_IO, &sfpmbs->iomem);
-#endif
+      if (bartype[i]) {
+        // - mmio
+        pci_register_bar(pci_dev, i, PCI_BASE_ADDRESS_SPACE_MEMORY
+                       // | PCI_BASE_ADDRESS_MEM_TYPE_64
+                       , &sfpmbs->iomem);
+      }else{
+        // - pio
+        pci_register_bar(pci_dev, i, PCI_BASE_ADDRESS_SPACE_IO, &sfpmbs->iomem);
+      }
     }
+#undef PIO
+#undef MMIO
     // FIXME: IRQ
     uint8_t *pci_conf = pci_dev->config;
     // pci_config_set_prog_interface(pci_conf, 0x2);
