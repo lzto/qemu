@@ -38,6 +38,8 @@
 #include "sysemu/cpus.h"
 #include "sysemu/replay.h"
 
+#include "aplib.h"
+
 /* -icount align implementation. */
 
 typedef struct SyncClocks {
@@ -145,6 +147,8 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
     TranslationBlock *last_tb;
     int tb_exit;
     uint8_t *tb_ptr = itb->tc.ptr;
+
+    ap_log_pc(itb->pc);
 
     qemu_log_mask_and_addr(CPU_LOG_EXEC, itb->pc,
                            "Trace %d: %p ["
