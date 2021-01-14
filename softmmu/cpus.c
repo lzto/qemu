@@ -63,6 +63,8 @@
 
 #include "sysemu/cpu-throttle.h"
 
+#include "aplib.h"
+
 #ifdef CONFIG_LINUX
 
 #include <sys/prctl.h>
@@ -1161,6 +1163,9 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
     int r;
+
+    // let fuzzer know we want to trace this process
+    ap_attach_pt();
 
     rcu_register_thread();
 
