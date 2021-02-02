@@ -81,15 +81,19 @@ static void sfp_deassert_irq(SFPCtrl *n) {
 static void sfp_mmio_write(void *opaque, hwaddr addr, uint64_t data,
                            unsigned size) {
   ap_set_fuzz_data(data, addr, size);
-  // SFPMBS *n = (SFPMBS *)opaque;
-  // SFPCtrl *ctrl = (SFPCtrl *)n->parent;
+  SFPMBS *n = (SFPMBS *)opaque;
+  SFPCtrl *ctrl = (SFPCtrl *)n->parent;
   // TODO - write the fuzz file or discard?
   // printf("sfp_mmio_write: addr %#lx size %d val=%#lx\n", addr, size, data);
   // uint8_t* val = (uint8_t*)&data;
   // memcpy(&(n->bar[addr]), val, size);
   //
   // assert IRQ
-  // timer_mod(ctrl->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 30000000000);
+  static int startedirq;
+  if (!startedirq) {
+    startedirq = 1;
+    timer_mod(ctrl->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 30000000);
+  }
 }
 
 static const MemoryRegionOps sfp_mmio_ops = {
@@ -108,13 +112,13 @@ static const MemoryRegionOps sfp_mmio_ops = {
 
 static void sfp_gen_irq(void *opaque) {
   SFPCtrl *n = (SFPCtrl *)opaque;
-  if (rand() % 100 > 50) {
+  if (ap_get_irq_status()) {
     sfp_assert_irq(n);
   } else {
     sfp_deassert_irq(n);
   }
   // schedule to trigger another irq
-  timer_mod(n->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 30000000000);
+  timer_mod(n->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 10000000);
 }
 
 static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
@@ -124,9 +128,9 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
 
   int bartype[SFPBARCNT] = {MMIO, MMIO, MMIO, MMIO, MMIO, MMIO};
   int barsize[SFPBARCNT] = {
+    256 * 1024 * 1024,
     64 * 1024 * 1024,
-    64 * 1024 * 1024,
-    64 * 1024 * 1024,
+    4 * 1 * 1024,
     64 * 1024 * 1024,
     64 * 1024 * 1024,
     64 * 1024 * 1024};
@@ -168,9 +172,11 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
 #undef MMIO
   // FIXME: IRQ
   uint8_t *pci_conf = pci_dev->config;
+
+
   // pci_config_set_prog_interface(pci_conf, 0x2);
-  // pci_config_set_class(pci_conf, PCI_CLASS_OTHERS);
   // pcie_endpoint_cap_init(pci_dev, 0x80);
+  // pci_config_set_class(pci_conf, PCI_CLASS_OTHERS);
   pci_conf[PCI_INTERRUPT_PIN] = 1;
   n->irq = pci_allocate_irq(pci_dev);
   // if (msix_init_exclusive_bar(pci_dev, 1, 4, errp)) {
@@ -198,8 +204,16 @@ static void sfp_class_init(ObjectClass *oc, void *data) {
 
   pc->realize = sfp_realize;
   pc->exit = sfp_exit;
-  // does not really matter
-  pc->class_id = 0x0200;
+  // specify class id here
+  const char *spciclass = getenv("PCI_CLASS");
+  if (spciclass != NULL) {
+    uint16_t pciclass;
+    sscanf(spciclass, "%hx", &pciclass);
+    printf("SFP PCI CLASS=%#x\n", pciclass);
+    pc->class_id = pciclass;
+  } else {
+    pc->class_id = 0x0200;
+  }
   // need to get this from driver
   pc->vendor_id = sfpvid;
   // need to get this from driver
