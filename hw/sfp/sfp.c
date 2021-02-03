@@ -227,6 +227,16 @@ static void sfp_class_init(ObjectClass *oc, void *data) {
   } else {
     pc->revision = 2;
   }
+  // subdevice
+  const char *sfpsubid = getenv("SFP_SUBDEVID");
+  if (sfpsubid != NULL) {
+    uint16_t subid;
+    sscanf(sfpsubid, "%hx", &subid);
+    printf("SFP SUBDEVID=%#x\n", subid);
+    pc->subsystem_id = subid;
+  } else {
+    pc->subsystem_id = 0;
+  }
 
   // does not really matter
   set_bit(DEVICE_CATEGORY_MISC, dc->categories);
