@@ -130,7 +130,7 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
   int barsize[SFPBARCNT] = {
     256 * 1024 * 1024,
     64 * 1024 * 1024,
-    4 * 1 * 1024,
+    64 * 1024 * 1024,
     64 * 1024 * 1024,
     64 * 1024 * 1024,
     64 * 1024 * 1024};
@@ -218,7 +218,15 @@ static void sfp_class_init(ObjectClass *oc, void *data) {
   pc->vendor_id = sfpvid;
   // need to get this from driver
   pc->device_id = sfppid;
-  pc->revision = 2;
+  const char *sfprevision = getenv("SFP_REVISION");
+  if (sfprevision != NULL) {
+    uint16_t revision;
+    sscanf(sfprevision, "%hx", &revision);
+    printf("SFP REVISION=%#x\n", revision);
+    pc->revision = revision;
+  } else {
+    pc->revision = 2;
+  }
 
   // does not really matter
   set_bit(DEVICE_CATEGORY_MISC, dc->categories);
