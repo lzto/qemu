@@ -128,7 +128,7 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
 
   int bartype[SFPBARCNT] = {MMIO, MMIO, MMIO, MMIO, MMIO, MMIO};
   int barsize[SFPBARCNT] = {
-    256 * 1024 * 1024,
+    64 * 1024 * 1024,
     64 * 1024 * 1024,
     64 * 1024 * 1024,
     64 * 1024 * 1024,
@@ -227,17 +227,26 @@ static void sfp_class_init(ObjectClass *oc, void *data) {
   } else {
     pc->revision = 2;
   }
-  // subdevice
-  const char *sfpsubid = getenv("SFP_SUBDEVID");
-  if (sfpsubid != NULL) {
-    uint16_t subid;
-    sscanf(sfpsubid, "%hx", &subid);
-    printf("SFP SUBDEVID=%#x\n", subid);
-    pc->subsystem_id = subid;
+  // sub vid
+  const char *sfpsubvid = getenv("SFP_SUBVID");
+  if (sfpsubvid != NULL) {
+    uint16_t subvid;
+    sscanf(sfpsubvid, "%hx", &subvid);
+    printf("SFP SUBVID=%#x\n", subvid);
+    pc->subsystem_vendor_id = subvid;
+  } else {
+    pc->subsystem_vendor_id = 0;
+  }
+  // sub pid
+  const char *sfpsubpid = getenv("SFP_SUBPID");
+  if (sfpsubpid != NULL) {
+    uint16_t subpid;
+    sscanf(sfpsubpid, "%hx", &subpid);
+    printf("SFP SUBPID=%#x\n", subpid);
+    pc->subsystem_id = subpid;
   } else {
     pc->subsystem_id = 0;
   }
-
   // does not really matter
   set_bit(DEVICE_CATEGORY_MISC, dc->categories);
   dc->desc = "SFP device";
