@@ -183,6 +183,14 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
   //  return;
   // }
   n->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sfp_gen_irq, n);
+
+  if (pci_bus_is_express(pci_get_bus(pci_dev))) {
+    pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
+    assert(pcie_endpoint_cap_init(pci_dev, 0x80)>0);
+  } else
+  {
+    printf("SFP is not connected to PCI Express bus, capability is limited\n");
+  }
 }
 
 static void sfp_exit(PCIDevice *pci_dev) {}
