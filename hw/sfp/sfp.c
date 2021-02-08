@@ -122,6 +122,7 @@ static void sfp_gen_irq(void *opaque) {
 }
 
 static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
+
   SFPCtrl *n = SFP(pci_dev);
 #define PIO 0
 #define MMIO 1
@@ -130,7 +131,7 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
   int barsize[SFPBARCNT] = {
     64 * 1024 * 1024,
     64 * 1024 * 1024,
-    64 * 1024 * 1024,
+    128 * 1024 * 1024,
     64 * 1024 * 1024,
     64 * 1024 * 1024,
     64 * 1024 * 1024};
@@ -179,9 +180,11 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
   // pci_config_set_class(pci_conf, PCI_CLASS_OTHERS);
   pci_conf[PCI_INTERRUPT_PIN] = 1;
   n->irq = pci_allocate_irq(pci_dev);
-  // if (msix_init_exclusive_bar(pci_dev, 1, 4, errp)) {
-  //  return;
-  // }
+  if (msix_init_exclusive_bar(pci_dev, 1, 5, errp)) {
+    printf("SFP:cannot init MSIX ");
+    exit(-1);
+    return;
+  }
   n->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sfp_gen_irq, n);
 
   if (pci_bus_is_express(pci_get_bus(pci_dev))) {
@@ -193,7 +196,9 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
   }
 }
 
-static void sfp_exit(PCIDevice *pci_dev) {}
+static void sfp_exit(PCIDevice *pci_dev) {
+    msix_uninit_exclusive_bar(pci_dev);
+}
 
 #define PCI_PRODUCT_ID_HAPS_HSOTG 0xabc0
 
