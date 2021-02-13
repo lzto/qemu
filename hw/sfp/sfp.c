@@ -8,6 +8,7 @@
 #include "qemu/error-report.h"
 #include "qemu/thread.h"
 #include "hw/block/block.h"
+#include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
@@ -121,6 +122,21 @@ static void sfp_gen_irq(void *opaque) {
   timer_mod(n->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 10000000);
 }
 
+static int sfp_vector_unmask(PCIDevice *dev, unsigned vector,
+                                 MSIMessage msg)
+{
+  return 0;
+}
+
+static void sfp_vector_mask(PCIDevice *dev, unsigned vector) {
+}
+
+static void sfp_vector_poll(PCIDevice *dev,
+                                unsigned int vector_start,
+                                unsigned int vector_end)
+{
+}
+
 static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
 
   SFPCtrl *n = SFP(pci_dev);
@@ -136,6 +152,8 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
     64 * 1024 * 1024,
     64 * 1024 * 1024};
   for (int i = 0; i < SFPBARCNT; i++) {
+    if (i==4)
+      continue;
     SFPMBS *sfpmbs = &(n->bars[i]);
     // FIXME: fix bar size
     int bar_size = barsize[i];
@@ -175,20 +193,51 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
   uint8_t *pci_conf = pci_dev->config;
 
 
-  // pci_config_set_prog_interface(pci_conf, 0x2);
   // pcie_endpoint_cap_init(pci_dev, 0x80);
-  // pci_config_set_class(pci_conf, PCI_CLASS_OTHERS);
+  // specify class id here
+  const char *spciclass = getenv("PCI_CLASS");
+  if (spciclass != NULL) {
+    uint32_t udata;
+    uint16_t pciclass;
+    uint8_t progif;
+    sscanf(spciclass, "%x", &udata);
+    printf("SFP PCI CLASS=%#x\n", udata);
+    progif = udata & 0xff;
+    pciclass = udata>>8;
+    pci_config_set_class(pci_conf, pciclass);
+    pci_config_set_prog_interface(pci_conf, progif);
+  } else {
+    pci_config_set_class(pci_conf, PCI_CLASS_OTHERS);
+    pci_config_set_prog_interface(pci_conf, 0x0);
+  }
+
   pci_conf[PCI_INTERRUPT_PIN] = 1;
   n->irq = pci_allocate_irq(pci_dev);
-  if (msix_init_exclusive_bar(pci_dev, 1, 5, errp)) {
+  if (msix_init_exclusive_bar(pci_dev, 4, 4, errp)) {
     printf("SFP:cannot init MSIX ");
     exit(-1);
     return;
   }
+  for(int i=0;i<4;i++) {
+    if (msix_vector_use(pci_dev, i)) {
+      printf("SFP:cannot use MSIX %d\n", i);
+      exit(-1);
+    }
+  }
+  if (msix_set_vector_notifiers(pci_dev,
+                                sfp_vector_unmask,
+                                sfp_vector_mask,
+                                sfp_vector_poll)) {
+    printf("SFP: cannot set msix notifier\n");
+    exit(-1);
+  }
+
   n->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sfp_gen_irq, n);
 
   if (pci_bus_is_express(pci_get_bus(pci_dev))) {
     pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
+    // pci_dev->cap_present |= QEMU_PCI_CAP_MSI;
+    // pci_dev->cap_present |= QEMU_PCI_CAP_MSIX;
     assert(pcie_endpoint_cap_init(pci_dev, 0x80)>0);
   } else
   {
@@ -217,16 +266,8 @@ static void sfp_class_init(ObjectClass *oc, void *data) {
 
   pc->realize = sfp_realize;
   pc->exit = sfp_exit;
-  // specify class id here
-  const char *spciclass = getenv("PCI_CLASS");
-  if (spciclass != NULL) {
-    uint16_t pciclass;
-    sscanf(spciclass, "%hx", &pciclass);
-    printf("SFP PCI CLASS=%#x\n", pciclass);
-    pc->class_id = pciclass;
-  } else {
-    pc->class_id = 0x0200;
-  }
+  pc->romfile = "sfp-rom.rom";
+
   // need to get this from driver
   pc->vendor_id = sfpvid;
   // need to get this from driver
