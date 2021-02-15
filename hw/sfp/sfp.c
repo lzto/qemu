@@ -28,7 +28,6 @@
 
 #define SFPBARCNT 6
 
-
 typedef struct SFPMBS {
   void *parent;
   int baridx;
@@ -51,7 +50,7 @@ static const VMStateDescription sfp_vmstate = {
 static uint64_t sfp_mmio_read(void *opaque, hwaddr addr, unsigned size) {
   // SFPMBS *n = (SFPMBS *)opaque;
   uint64_t val = 0;
-  ap_get_fuzz_data((char*)&val, addr, size);
+  ap_get_fuzz_data((char *)&val, addr, size);
   // TODO: read from fuzz file @ offset addr and size
   return val;
 }
@@ -122,20 +121,14 @@ static void sfp_gen_irq(void *opaque) {
   timer_mod(n->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 10000000);
 }
 
-static int sfp_vector_unmask(PCIDevice *dev, unsigned vector,
-                                 MSIMessage msg)
-{
+static int sfp_vector_unmask(PCIDevice *dev, unsigned vector, MSIMessage msg) {
   return 0;
 }
 
-static void sfp_vector_mask(PCIDevice *dev, unsigned vector) {
-}
+static void sfp_vector_mask(PCIDevice *dev, unsigned vector) {}
 
-static void sfp_vector_poll(PCIDevice *dev,
-                                unsigned int vector_start,
-                                unsigned int vector_end)
-{
-}
+static void sfp_vector_poll(PCIDevice *dev, unsigned int vector_start,
+                            unsigned int vector_end) {}
 
 static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
 
@@ -144,15 +137,11 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
 #define MMIO 1
 
   int bartype[SFPBARCNT] = {MMIO, MMIO, MMIO, MMIO, MMIO, MMIO};
-  int barsize[SFPBARCNT] = {
-    64 * 1024 * 1024,
-    64 * 1024 * 1024,
-    128 * 1024 * 1024,
-    64 * 1024 * 1024,
-    64 * 1024 * 1024,
-    64 * 1024 * 1024};
+  int barsize[SFPBARCNT] = {64 * 1024 * 1024,  64 * 1024 * 1024,
+                            128 * 1024 * 1024, 64 * 1024 * 1024,
+                            64 * 1024 * 1024,  64 * 1024 * 1024};
   for (int i = 0; i < SFPBARCNT; i++) {
-    if (i==4)
+    if (i == 4)
       continue;
     SFPMBS *sfpmbs = &(n->bars[i]);
     // FIXME: fix bar size
@@ -192,7 +181,6 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
   // FIXME: IRQ
   uint8_t *pci_conf = pci_dev->config;
 
-
   // pcie_endpoint_cap_init(pci_dev, 0x80);
   // specify class id here
   const char *spciclass = getenv("PCI_CLASS");
@@ -203,7 +191,7 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
     sscanf(spciclass, "%x", &udata);
     printf("SFP PCI CLASS=%#x\n", udata);
     progif = udata & 0xff;
-    pciclass = udata>>8;
+    pciclass = udata >> 8;
     pci_config_set_class(pci_conf, pciclass);
     pci_config_set_prog_interface(pci_conf, progif);
   } else {
@@ -218,15 +206,13 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
     exit(-1);
     return;
   }
-  for(int i=0;i<4;i++) {
+  for (int i = 0; i < 4; i++) {
     if (msix_vector_use(pci_dev, i)) {
       printf("SFP:cannot use MSIX %d\n", i);
       exit(-1);
     }
   }
-  if (msix_set_vector_notifiers(pci_dev,
-                                sfp_vector_unmask,
-                                sfp_vector_mask,
+  if (msix_set_vector_notifiers(pci_dev, sfp_vector_unmask, sfp_vector_mask,
                                 sfp_vector_poll)) {
     printf("SFP: cannot set msix notifier\n");
     exit(-1);
@@ -238,16 +224,13 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
     pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
     // pci_dev->cap_present |= QEMU_PCI_CAP_MSI;
     // pci_dev->cap_present |= QEMU_PCI_CAP_MSIX;
-    assert(pcie_endpoint_cap_init(pci_dev, 0x80)>0);
-  } else
-  {
+    assert(pcie_endpoint_cap_init(pci_dev, 0x80) > 0);
+  } else {
     printf("SFP is not connected to PCI Express bus, capability is limited\n");
   }
 }
 
-static void sfp_exit(PCIDevice *pci_dev) {
-    msix_uninit_exclusive_bar(pci_dev);
-}
+static void sfp_exit(PCIDevice *pci_dev) { msix_uninit_exclusive_bar(pci_dev); }
 
 #define PCI_PRODUCT_ID_HAPS_HSOTG 0xabc0
 
