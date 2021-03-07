@@ -133,41 +133,32 @@ static void sfp_vector_poll(PCIDevice *dev, unsigned int vector_start,
 static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
 
   SFPCtrl *n = SFP(pci_dev);
-#define PIO 0
-#define MMIO 1
-
-  int bartype[SFPBARCNT] = {MMIO, MMIO, MMIO, MMIO, MMIO, MMIO};
-  int barsize[SFPBARCNT] = {64 * 1024 * 1024,  64 * 1024 * 1024,
-                            128 * 1024 * 1024, 64 * 1024 * 1024,
-                            64 * 1024 * 1024,  64 * 1024 * 1024};
-  for (int i = 0; i < SFPBARCNT; i++) {
+  for (int i = 0; i < ap_get_pci_bar_cnt(); i++) {
     if (i == 4)
       continue;
     SFPMBS *sfpmbs = &(n->bars[i]);
     // FIXME: fix bar size
-    int bar_size = barsize[i];
-    uint8_t *bar = (uint8_t *)malloc(bar_size);
+    int bar_size = ap_get_pci_bar_size(i);
+    uint8_t *bar = (uint8_t *)calloc(bar_size, 1);
     if (!bar) {
       printf("bar %d allocation failed!\n", i);
       exit(-1);
     }
-    memset(bar, 0, bar_size);
     sfpmbs->parent = n;
     sfpmbs->baridx = i;
     sfpmbs->bar = bar;
-    // TODO: put some initial value here?
-    bar[0] = 0x00;
-    bar[0x10] = 0x12;
-    bar[0x011b] = 0xb3;
 
-    printf("sfp allocated bar[%d] %d bytes\n", i, bar_size);
+    int bartype = ap_get_pci_bar_type(i);
+
+    printf("sfp allocated %s bar[%d] %d bytes\n", bartype == 0 ? "PIO" : "MMIO",
+           i, bar_size);
 
     char name[16];
     sprintf(name, "sfp-%d", i);
     memory_region_init_io(&sfpmbs->iomem, OBJECT(n), &sfp_mmio_ops, sfpmbs,
                           name, bar_size);
     // register bar
-    if (bartype[i]) {
+    if (bartype != 0) {
       // - mmio
       pci_register_bar(pci_dev, i, PCI_BASE_ADDRESS_SPACE_MEMORY,
                        &sfpmbs->iomem);
@@ -176,8 +167,7 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
       pci_register_bar(pci_dev, i, PCI_BASE_ADDRESS_SPACE_IO, &sfpmbs->iomem);
     }
   }
-#undef PIO
-#undef MMIO
+  printf("Config PCI Class\n");
   // FIXME: IRQ
   uint8_t *pci_conf = pci_dev->config;
 
@@ -199,6 +189,7 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
     pci_config_set_prog_interface(pci_conf, 0x0);
   }
 
+  printf("Create MSIX bar\n");
   pci_conf[PCI_INTERRUPT_PIN] = 1;
   n->irq = pci_allocate_irq(pci_dev);
   if (msix_init_exclusive_bar(pci_dev, 4, 4, errp)) {
@@ -217,8 +208,10 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
     printf("SFP: cannot set msix notifier\n");
     exit(-1);
   }
-
+  printf("Create Timed IRQ\n");
   n->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sfp_gen_irq, n);
+
+  printf("Create PCI-Express Setup\n");
 
   if (pci_bus_is_express(pci_get_bus(pci_dev))) {
     pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
@@ -228,6 +221,7 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
   } else {
     printf("SFP is not connected to PCI Express bus, capability is limited\n");
   }
+  printf("Done\n");
 }
 
 static void sfp_exit(PCIDevice *pci_dev) { msix_uninit_exclusive_bar(pci_dev); }
