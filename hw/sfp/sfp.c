@@ -243,7 +243,7 @@ static void sfp_class_init(ObjectClass *oc, void *data) {
 
   pc->realize = sfp_realize;
   pc->exit = sfp_exit;
-  pc->romfile = "sfp-rom.rom";
+  pc->romfile = ap_get_rom_path();
 
   // need to get this from driver
   pc->vendor_id = sfpvid;
