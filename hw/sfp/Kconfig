@@ -1,5 +1,10 @@
-config SFP
+config SFP_PCI
     bool
     default y if PCI_DEVICES
     depends on PCI
+
+config SFP_USB
+    bool
+    default y if USB
+    depends on USB
 

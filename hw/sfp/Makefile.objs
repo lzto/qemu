@@ -1,1 +1,2 @@
-common-obj-$(CONFIG_SFP) += sfp.o
+common-obj-$(CONFIG_SFP_PCI) += sfp-pci.o
+common-obj-$(CONFIG_SFP_USB) += sfp-usb.o
