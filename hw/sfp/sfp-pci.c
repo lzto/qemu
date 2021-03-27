@@ -192,12 +192,12 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
   printf("Create MSIX bar\n");
   pci_conf[PCI_INTERRUPT_PIN] = 1;
   n->irq = pci_allocate_irq(pci_dev);
-  if (msix_init_exclusive_bar(pci_dev, 4, 4, errp)) {
+  if (msix_init_exclusive_bar(pci_dev, 32, 4, errp)) {
     printf("SFP:cannot init MSIX ");
     exit(-1);
     return;
   }
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 32; i++) {
     if (msix_vector_use(pci_dev, i)) {
       printf("SFP:cannot use MSIX %d\n", i);
       exit(-1);
