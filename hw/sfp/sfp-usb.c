@@ -17,6 +17,8 @@
 #include "qemu/module.h"
 #include "qemu/cutils.h"
 
+#include "aplib.h"
+
 #define USB_SFP_VID 0x12d8
 #define USB_SFP_PID 0x0001
 
@@ -36,14 +38,44 @@ static const USBDescStrings usb_sfp_stringtable = {
 static const USBDescIface desc_iface_sfp[] = {
     {/* CDC Control Interface */
      .bInterfaceNumber = 0,
-     .bNumEndpoints = 1,
-     .bInterfaceClass = USB_CLASS_COMM,
+     .bNumEndpoints = 4,
+     .bInterfaceClass = USB_CLASS_VENDOR_SPEC,
      .bInterfaceSubClass = 1,
      .bInterfaceProtocol = 0,
      .iInterface = STRING_CONTROL,
-     .ndesc = 1,
+     .ndesc = 4,
      .descs =
          (USBDescOther[]){
+             {
+                 /* Header Descriptor */
+                 .data =
+                     (uint8_t[]){
+                         0x05,                /*  u8    bLength */
+                         USB_DT_CS_INTERFACE, /*  u8    bDescriptorType */
+                         0x10,                /*  u8    bDescriptorSubType */
+                         0x10, 0x01,          /*  le16  bcdCDC */
+                     },
+             },
+             {
+                 /* Header Descriptor */
+                 .data =
+                     (uint8_t[]){
+                         0x05,                /*  u8    bLength */
+                         USB_DT_CS_INTERFACE, /*  u8    bDescriptorType */
+                         0x10,                /*  u8    bDescriptorSubType */
+                         0x10, 0x01,          /*  le16  bcdCDC */
+                     },
+             },
+             {
+                 /* Header Descriptor */
+                 .data =
+                     (uint8_t[]){
+                         0x05,                /*  u8    bLength */
+                         USB_DT_CS_INTERFACE, /*  u8    bDescriptorType */
+                         0x10,                /*  u8    bDescriptorSubType */
+                         0x10, 0x01,          /*  le16  bcdCDC */
+                     },
+             },
              {
                  /* Header Descriptor */
                  .data =
@@ -57,7 +89,25 @@ static const USBDescIface desc_iface_sfp[] = {
          },
      .eps = (USBDescEndpoint[]){
          {
+             .bEndpointAddress = USB_DIR_OUT | 0x01,
+             .bmAttributes = USB_ENDPOINT_XFER_BULK,
+             .wMaxPacketSize = 0x10,
+             .bInterval = 1,
+         },
+         {
              .bEndpointAddress = USB_DIR_IN | 0x01,
+             .bmAttributes = USB_ENDPOINT_XFER_BULK,
+             .wMaxPacketSize = 0x10,
+             .bInterval = 1,
+         },
+         {
+             .bEndpointAddress = USB_DIR_OUT | 0x02,
+             .bmAttributes = USB_ENDPOINT_XFER_INT,
+             .wMaxPacketSize = 0x10,
+             .bInterval = 1,
+         },
+         {
+             .bEndpointAddress = USB_DIR_IN | 0x02,
              .bmAttributes = USB_ENDPOINT_XFER_INT,
              .wMaxPacketSize = 0x10,
              .bInterval = 1,
@@ -70,7 +120,7 @@ static const USBDescDevice desc_device_sfp = {
     .bMaxPacketSize0 = 0x40,
     .bNumConfigurations = 1,
     .confs = (USBDescConfig[]){{
-        .bNumInterfaces = 1,
+        .bNumInterfaces = 0,// dln2 require this to be 0
         .bConfigurationValue = 1,
         .iConfiguration = 7,
         .bmAttributes = USB_CFG_ATT_ONE | USB_CFG_ATT_SELFPOWER,
@@ -112,6 +162,7 @@ static void usb_sfp_handle_control(USBDevice *dev, USBPacket *p, int request,
   // USBSFPState *s = (USBSFPState *) dev;
   int ret;
 
+  // descriptors are send to host by usb_desc_handle_control()
   ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
   if (ret >= 0) {
     return;
@@ -171,13 +222,15 @@ static void usfp_class_initfn(ObjectClass *klass, void *data) {
   DeviceClass *dc = DEVICE_CLASS(klass);
   USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
   
+  USBDesc* desc = (USBDesc*)ap_get_usb_desc();
+  
   // change vid/pid
   const char *sfpusbvid = getenv("SFP_USB_VID");
   if (sfpusbvid != NULL) {
     uint16_t vid;
     sscanf(sfpusbvid, "%hx", &vid);
     printf("SFP USB VID=%#x\n", vid);
-    desc_sfp.id.idVendor = vid;
+    desc->id.idVendor = vid;
   }
 
   const char *sfpusbpid = getenv("SFP_USB_PID");
@@ -185,12 +238,13 @@ static void usfp_class_initfn(ObjectClass *klass, void *data) {
     uint16_t pid;
     sscanf(sfpusbpid, "%hx", &pid);
     printf("SFP USB PID=%#x\n", pid);
-    desc_sfp.id.idProduct = pid;
+    desc->id.idProduct = pid;
   }
 
   uc->realize = usb_sfp_realize;
   uc->product_desc = "USB SFP";
-  uc->usb_desc = &desc_sfp;
+  // uc->usb_desc = &desc_sfp;
+  uc->usb_desc = desc;
   uc->handle_reset = usb_sfp_handle_reset;
   uc->handle_control = usb_sfp_handle_control;
   uc->handle_data = usb_sfp_handle_data;
