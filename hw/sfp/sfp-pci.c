@@ -99,10 +99,13 @@ void sfp_set_irq(int isset) {
 
 #if 1
 static int sfp_vector_unmask(PCIDevice *dev, unsigned vector, MSIMessage msg) {
+  msix_vector_use(dev, vector);
   return 0;
 }
 
-static void sfp_vector_mask(PCIDevice *dev, unsigned vector) {}
+static void sfp_vector_mask(PCIDevice *dev, unsigned vector) {
+  msix_vector_unuse(dev, vector);
+}
 
 static void sfp_vector_poll(PCIDevice *dev, unsigned int vector_start,
                             unsigned int vector_end) {}
@@ -282,6 +285,10 @@ static void sfp_realize(PCIDevice *pci_dev, Error **errp) {
 
   pci_conf[PCI_INTERRUPT_PIN] = 1;
   n->irq = pci_allocate_irq(pci_dev);
+
+  // for MSI
+  int ret = msi_init(pci_dev, 0xd0, 1, true, false, NULL);
+  assert(!ret || ret == -ENOTSUP);
 
   if (msixBarIdx != -1) {
     printf("Create MSIX bar\n");
