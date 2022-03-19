@@ -225,7 +225,10 @@ static void usfp_class_initfn(ObjectClass *klass, void *data) {
   USBDesc *desc = (USBDesc *)ap_get_usb_desc();
   desc = &desc_sfp;
 
-  // change vid/pid
+  desc->id.idVendor = ap_get_usb_vid();
+  desc->id.idProduct = ap_get_usb_pid();
+
+  // allow environment to change vid/pid
   const char *sfpusbvid = getenv("SFP_USB_VID");
   if (sfpusbvid != NULL) {
     uint16_t vid;
@@ -253,7 +256,7 @@ static void usfp_class_initfn(ObjectClass *klass, void *data) {
   // TODO: set type
   set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 
-  dc->fw_name = "u-sfp";
+  dc->fw_name = "sfpsfpsfp";
   dc->vmsd = &vmstate_usfp;
   // device_class_set_props(dc, NULL);
 }
