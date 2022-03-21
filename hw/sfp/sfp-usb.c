@@ -169,9 +169,18 @@ static void usb_sfp_handle_control(USBDevice *dev, USBPacket *p, int request,
   }
 }
 
-static void usb_sfp_handle_datain(USBSFPState *s, USBPacket *p) {}
+static void usb_sfp_handle_datain(USBSFPState *s, USBPacket *p) {
+  USBDevice *dev = &(s->dev);
+  uint8_t* buf = dev->data_buf;
+  for (int i=0;i<4096;i++)
+    buf[i] = rand();
+  p->actual_length = 4096;
+  //printf("%s:%d %s\n",__FILE__,__LINE__,__func__);
+}
 
-static void usb_sfp_handle_dataout(USBSFPState *s, USBPacket *p) {}
+static void usb_sfp_handle_dataout(USBSFPState *s, USBPacket *p) {
+	//printf("%s:%d %s\n",__FILE__,__LINE__,__func__);
+}
 
 static void usb_sfp_handle_data(USBDevice *dev, USBPacket *p) {
   USBSFPState *s = (USBSFPState *)dev;
@@ -222,8 +231,9 @@ static void usfp_class_initfn(ObjectClass *klass, void *data) {
   DeviceClass *dc = DEVICE_CLASS(klass);
   USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-  USBDesc *desc = (USBDesc *)ap_get_usb_desc();
+  USBDesc *desc ;
   desc = &desc_sfp;
+  desc = (USBDesc *)ap_get_usb_desc();
 
   desc->id.idVendor = ap_get_usb_vid();
   desc->id.idProduct = ap_get_usb_pid();
