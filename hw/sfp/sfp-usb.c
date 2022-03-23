@@ -233,7 +233,8 @@ static void usfp_class_initfn(ObjectClass *klass, void *data) {
 
   USBDesc *desc ;
   desc = &desc_sfp;
-  desc = (USBDesc *)ap_get_usb_desc();
+  if (ap_get_usb_desc())
+    desc = (USBDesc *)ap_get_usb_desc();
 
   desc->id.idVendor = ap_get_usb_vid();
   desc->id.idProduct = ap_get_usb_pid();
