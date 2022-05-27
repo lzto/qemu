@@ -23,11 +23,15 @@
 #include "qapi/error.h"
 
 #include "kvm-cpus.h"
+#include "aplib.h"
 
 static void *kvm_vcpu_thread_fn(void *arg)
 {
     CPUState *cpu = arg;
     int r;
+
+    // let fuzzer know we want to trace this process
+    ap_attach_pt();
 
     rcu_register_thread();
 
